@@ -2,31 +2,11 @@
 
 ## Student and Project Information
 
-- Student name:
-- GitHub username:
-- Project title:
-- Application purpose:
+- Student name: Christopher Forrester-Jack
+- GitHub username: CFJ200
+- Project title: Personal Expense Tracker
+- Application purpose: Help college students record purchases and understand where their money is going.
 
-## How to Run the Application
+## Project Status
 
-Explain the required Python version, required files, and the exact steps for starting the application in PyCharm.
-
-## Major Features
-
-List the major user-facing features implemented in the final application.
-
-## Python Concepts Used
-
-Explain how the application uses functions, collections, conditionals, loops, file persistence, and exception handling.
-
-## Data Files
-
-Describe each CSV or JSON file and provide a brief explanation of its fields.
-
-## Testing Summary
-
-Describe the major scenarios tested, including invalid input and file-related errors.
-
-## AI Use
-
-Complete `AI_USAGE.md` and summarize the most important AI-assisted improvements here.
+The project files and data folder have been created. The application features will be added in the next version.

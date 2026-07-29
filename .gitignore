@@ -1,15 +1,5 @@
-# Python-generated files
 __pycache__/
-*.py[cod]
-
-# Virtual environments
+*.pyc
+.idea/
 .venv/
 venv/
-env/
-
-# PyCharm project settings
-.idea/
-
-# Operating-system files
-.DS_Store
-Thumbs.db
