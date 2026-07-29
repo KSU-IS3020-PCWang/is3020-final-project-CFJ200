@@ -1,155 +1,316 @@
-"""Basic working version of a personal expense tracker."""
+"""Personal Expense Tracker for the IS 3020 final project."""
 
 import csv
-import os
+from datetime import datetime
+from pathlib import Path
 
-FILE_NAME = "data/expenses.csv"
-FIELDS = ["expense_id", "date", "category", "description", "amount"]
+DATA_FOLDER = Path(__file__).parent / "data"
+DATA_FILE = DATA_FOLDER / "expenses.csv"
+FIELDNAMES = ["expense_id", "date", "category", "description", "amount"]
 
 
-def load_expenses():
+def display_menu():
+    """Show the main menu and return the user's choice."""
+    print("\n" + "=" * 45)
+    print("PERSONAL EXPENSE TRACKER")
+    print("=" * 45)
+    print("1. Add an expense")
+    print("2. View all expenses")
+    print("3. View total spending")
+    print("4. View totals by category")
+    print("5. Search expenses")
+    print("6. Delete an expense")
+    print("7. View expenses by month")
+    print("8. Exit")
+    return input("Choose an option (1-8): ").strip()
+
+
+def load_expenses(file_path=DATA_FILE):
+    """Load valid expense records from the CSV file."""
     expenses = []
 
+    if not file_path.exists():
+        return expenses
+
     try:
-        with open(FILE_NAME, "r", newline="", encoding="utf-8") as file:
+        with file_path.open("r", newline="", encoding="utf-8") as file:
             reader = csv.DictReader(file)
-            for row in reader:
-                row["expense_id"] = int(row["expense_id"])
-                row["amount"] = float(row["amount"])
-                expenses.append(row)
-    except FileNotFoundError:
-        pass
-    except (ValueError, KeyError):
-        print("Some saved data could not be loaded.")
+
+            if reader.fieldnames != FIELDNAMES:
+                print("The expense file has the wrong columns. Starting with an empty list.")
+                return []
+
+            for row_number, row in enumerate(reader, start=2):
+                try:
+                    expense_id = int(row["expense_id"])
+                    amount = float(row["amount"])
+                    datetime.strptime(row["date"], "%Y-%m-%d")
+
+                    if expense_id <= 0 or amount <= 0:
+                        raise ValueError
+
+                    expenses.append(
+                        {
+                            "expense_id": expense_id,
+                            "date": row["date"],
+                            "category": row["category"].strip(),
+                            "description": row["description"].strip(),
+                            "amount": amount,
+                        }
+                    )
+                except (TypeError, ValueError):
+                    print(f"Skipped an invalid expense on row {row_number}.")
+    except OSError:
+        print("The expense file could not be opened. Starting with an empty list.")
+        return []
 
     return expenses
 
 
-def save_expenses(expenses):
-    os.makedirs("data", exist_ok=True)
+def save_expenses(expenses, file_path=DATA_FILE):
+    """Save the current list of expenses to the CSV file."""
+    try:
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        with file_path.open("w", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=FIELDNAMES)
+            writer.writeheader()
 
-    with open(FILE_NAME, "w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=FIELDS)
-        writer.writeheader()
-        writer.writerows(expenses)
+            for expense in expenses:
+                writer.writerow(
+                    {
+                        "expense_id": expense["expense_id"],
+                        "date": expense["date"],
+                        "category": expense["category"],
+                        "description": expense["description"],
+                        "amount": f'{expense["amount"]:.2f}',
+                    }
+                )
+        return True
+    except OSError:
+        print("The expenses could not be saved. Check the file and try again.")
+        return False
 
 
-def display_menu():
-    print("\nPersonal Expense Tracker")
-    print("1. Add expense")
-    print("2. View expenses")
-    print("3. View total")
-    print("4. Totals by category")
-    print("5. Search expenses")
-    print("6. Delete expense")
-    print("7. Exit")
-    return input("Choose an option: ").strip()
+def get_valid_date():
+    """Ask for a real date in YYYY-MM-DD format."""
+    while True:
+        date_text = input("Enter the date (YYYY-MM-DD), or press Enter for today: ").strip()
+
+        if date_text == "":
+            return datetime.today().strftime("%Y-%m-%d")
+
+        try:
+            datetime.strptime(date_text, "%Y-%m-%d")
+            return date_text
+        except ValueError:
+            print("Use a real date in YYYY-MM-DD format, such as 2026-07-28.")
+
+
+def get_required_text(prompt):
+    """Ask for text and do not allow a blank answer."""
+    while True:
+        text = input(prompt).strip()
+        if text:
+            return text
+        print("This field cannot be left blank.")
+
+
+def get_positive_amount():
+    """Ask for a positive expense amount."""
+    while True:
+        try:
+            amount = float(input("Enter the amount: $").strip())
+            if amount <= 0:
+                print("The amount must be greater than zero.")
+                continue
+            return round(amount, 2)
+        except ValueError:
+            print("Enter the amount as a number, such as 12.50.")
 
 
 def add_expense(expenses):
-    date = input("Date (YYYY-MM-DD): ").strip()
-    category = input("Category: ").strip()
-    description = input("Description: ").strip()
+    """Create and save a new expense."""
+    print("\nAdd an Expense")
+    date = get_valid_date()
+    category = get_required_text("Enter the category: ").title()
+    description = get_required_text("Enter a description: ")
+    amount = get_positive_amount()
 
-    while True:
-        try:
-            amount = float(input("Amount: $").strip())
-            if amount <= 0:
-                print("Amount needs to be more than zero.")
-            else:
-                break
-        except ValueError:
-            print("Enter a number for the amount.")
+    next_id = max((expense["expense_id"] for expense in expenses), default=0) + 1
+    new_expense = {
+        "expense_id": next_id,
+        "date": date,
+        "category": category,
+        "description": description,
+        "amount": amount,
+    }
+    expenses.append(new_expense)
 
-    next_id = max([item["expense_id"] for item in expenses], default=0) + 1
-    expenses.append(
-        {
-            "expense_id": next_id,
-            "date": date,
-            "category": category,
-            "description": description,
-            "amount": round(amount, 2),
-        }
-    )
-    save_expenses(expenses)
-    print("Expense added.")
+    if save_expenses(expenses):
+        print(f"Expense #{next_id} was added and saved.")
+    else:
+        expenses.remove(new_expense)
+
+
+def print_expense_table(expenses):
+    """Print expenses in a readable table."""
+    print("\n" + "-" * 88)
+    print(f'{"ID":<5}{"Date":<13}{"Category":<20}{"Description":<32}{"Amount":>12}')
+    print("-" * 88)
+
+    for expense in expenses:
+        category = expense["category"][:18]
+        description = expense["description"][:30]
+        print(
+            f'{expense["expense_id"]:<5}'
+            f'{expense["date"]:<13}'
+            f'{category:<20}'
+            f'{description:<32}'
+            f'${expense["amount"]:>11.2f}'
+        )
+
+    print("-" * 88)
 
 
 def view_expenses(expenses):
-    if len(expenses) == 0:
-        print("No expenses saved.")
+    """Display all expenses in date and ID order."""
+    if not expenses:
+        print("No expenses have been saved yet.")
         return
 
-    print("\nSaved Expenses")
-    for item in expenses:
-        print(
-            f'{item["expense_id"]}. {item["date"]} | '
-            f'{item["category"]} | {item["description"]} | '
-            f'${item["amount"]:.2f}'
-        )
+    sorted_expenses = sorted(
+        expenses,
+        key=lambda expense: (expense["date"], expense["expense_id"]),
+    )
+    print_expense_table(sorted_expenses)
 
 
-def calculate_total(expenses):
-    total = 0
-    for item in expenses:
-        total += item["amount"]
-    print(f"Total spent: ${total:.2f}")
+def calculate_total(expenses, display=True):
+    """Calculate the total amount spent."""
+    total = sum(expense["amount"] for expense in expenses)
+    if display:
+        print(f"\nTotal spent: ${total:.2f}")
+    return total
 
 
 def summarize_by_category(expenses):
-    totals = {}
+    """Display the total amount spent in each category."""
+    if not expenses:
+        print("No expenses have been saved yet.")
+        return
 
-    for item in expenses:
-        category = item["category"]
-        if category not in totals:
-            totals[category] = 0
-        totals[category] += item["amount"]
+    category_totals = {}
+    for expense in expenses:
+        category = expense["category"]
+        category_totals[category] = category_totals.get(category, 0) + expense["amount"]
 
-    if len(totals) == 0:
-        print("No expenses saved.")
-    else:
-        print("\nTotals by Category")
-        for category in totals:
-            print(f"{category}: ${totals[category]:.2f}")
+    print("\nSpending by Category")
+    print("-" * 36)
+    for category in sorted(category_totals):
+        print(f"{category:<24}${category_totals[category]:>10.2f}")
+    print("-" * 36)
+    print(f'{"Overall Total":<24}${calculate_total(expenses, display=False):>10.2f}')
 
 
 def search_expenses(expenses):
-    word = input("Enter a category or description to search: ").strip().lower()
+    """Search by ID, date, category, or description."""
+    if not expenses:
+        print("No expenses have been saved yet.")
+        return
+
+    search_word = input("Enter an ID, date, category, or search word: ").strip().lower()
+    if not search_word:
+        print("Enter something to search for.")
+        return
+
     matches = []
+    for expense in expenses:
+        searchable_text = (
+            f'{expense["expense_id"]} {expense["date"]} '
+            f'{expense["category"]} {expense["description"]}'
+        ).lower()
+        if search_word in searchable_text:
+            matches.append(expense)
 
-    for item in expenses:
-        if word in item["category"].lower() or word in item["description"].lower():
-            matches.append(item)
-
-    if len(matches) == 0:
-        print("No matches found.")
+    if matches:
+        print(f"\nFound {len(matches)} matching expense(s).")
+        print_expense_table(matches)
     else:
-        view_expenses(matches)
+        print("No matching expenses were found.")
 
 
 def delete_expense(expenses):
-    view_expenses(expenses)
-    if len(expenses) == 0:
+    """Delete an expense after the user confirms the choice."""
+    if not expenses:
+        print("No expenses are available to delete.")
         return
+
+    view_expenses(expenses)
 
     try:
-        expense_id = int(input("Enter the ID to delete: ").strip())
+        expense_id = int(input("Enter the expense ID to delete: ").strip())
     except ValueError:
-        print("Enter a whole number ID.")
+        print("Enter a whole-number expense ID.")
         return
 
-    for item in expenses:
-        if item["expense_id"] == expense_id:
-            expenses.remove(item)
-            save_expenses(expenses)
-            print("Expense deleted.")
-            return
+    selected_expense = None
+    for expense in expenses:
+        if expense["expense_id"] == expense_id:
+            selected_expense = expense
+            break
 
-    print("Expense ID not found.")
+    if selected_expense is None:
+        print("That expense ID was not found.")
+        return
+
+    print(
+        f'You selected: {selected_expense["description"]} '
+        f'(${selected_expense["amount"]:.2f})'
+    )
+    confirm = input("Delete this expense? (y/n): ").strip().lower()
+
+    if confirm not in ("y", "yes"):
+        print("Delete canceled.")
+        return
+
+    expenses.remove(selected_expense)
+    if save_expenses(expenses):
+        print("Expense deleted.")
+    else:
+        expenses.append(selected_expense)
+        expenses.sort(key=lambda expense: expense["expense_id"])
+
+
+def filter_by_month(expenses):
+    """Show expenses from a month entered as YYYY-MM."""
+    if not expenses:
+        print("No expenses have been saved yet.")
+        return
+
+    month_text = input("Enter a month (YYYY-MM): ").strip()
+    try:
+        datetime.strptime(month_text, "%Y-%m")
+    except ValueError:
+        print("Use a real month in YYYY-MM format, such as 2026-07.")
+        return
+
+    matches = [
+        expense for expense in expenses if expense["date"].startswith(month_text + "-")
+    ]
+
+    if not matches:
+        print(f"No expenses were found for {month_text}.")
+        return
+
+    print(f"\nExpenses for {month_text}")
+    print_expense_table(matches)
+    print(f"Month total: ${calculate_total(matches, display=False):.2f}")
 
 
 def main():
+    """Load data and run the menu until the user exits."""
     expenses = load_expenses()
+    print(f"Loaded {len(expenses)} saved expense(s).")
 
     while True:
         choice = display_menu()
@@ -167,11 +328,16 @@ def main():
         elif choice == "6":
             delete_expense(expenses)
         elif choice == "7":
-            print("Goodbye!")
+            filter_by_month(expenses)
+        elif choice == "8":
+            print("Your expenses have been saved. Goodbye!")
             break
         else:
-            print("Choose a number from 1 to 7.")
+            print("Choose a number from 1 through 8.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nThe program was closed. Saved expenses are still in data/expenses.csv.")

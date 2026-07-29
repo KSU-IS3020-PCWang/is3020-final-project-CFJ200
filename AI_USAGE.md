@@ -1,3 +1,5 @@
 # AI Usage
 
-This version is my original working project before AI-assisted improvements. I created the main structure and core features myself. AI was used afterward to help review the code, fix issues, and improve the final version.
+I created the original working version of this project before using generative AI.
+
+I used generative AI to help review the code, identify errors, and suggest improvements for the final version.
